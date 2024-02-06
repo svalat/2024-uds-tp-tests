@@ -1,10 +1,10 @@
-Start testing: Feb 06 11:34 CET
+Start testing: Feb 06 15:24 CET
 ----------------------------------------------------------
 1/3 Testing: test-basic
 1/3 Test: test-basic
 Command: "/home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build/test-basic"
 Directory: /home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build
-"test-basic" start time: Feb 06 11:34 CET
+"test-basic" start time: Feb 06 15:24 CET
 Output:
 ----------------------------------------------------------
 Running main() from ./googletest/src/gtest_main.cc
@@ -22,7 +22,7 @@ Running main() from ./googletest/src/gtest_main.cc
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"test-basic" end time: Feb 06 11:34 CET
+"test-basic" end time: Feb 06 15:24 CET
 "test-basic" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -30,7 +30,7 @@ Test Passed.
 2/3 Test: test-particle
 Command: "/home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build/test-particle"
 Directory: /home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build
-"test-particle" start time: Feb 06 11:34 CET
+"test-particle" start time: Feb 06 15:24 CET
 Output:
 ----------------------------------------------------------
 Running main() from ./googletest/src/gtest_main.cc
@@ -50,7 +50,7 @@ Running main() from ./googletest/src/gtest_main.cc
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"test-particle" end time: Feb 06 11:34 CET
+"test-particle" end time: Feb 06 15:24 CET
 "test-particle" time elapsed: 00:00:00
 ----------------------------------------------------------
 
@@ -58,7 +58,7 @@ Test Passed.
 3/3 Test: test-physics
 Command: "/home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build/test-physics"
 Directory: /home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build
-"test-physics" start time: Feb 06 11:34 CET
+"test-physics" start time: Feb 06 15:24 CET
 Output:
 ----------------------------------------------------------
 Running main() from ./googletest/src/gtest_main.cc
@@ -82,8 +82,8 @@ Running main() from ./googletest/src/gtest_main.cc
 Test time =   0.00 sec
 ----------------------------------------------------------
 Test Passed.
-"test-physics" end time: Feb 06 11:34 CET
+"test-physics" end time: Feb 06 15:24 CET
 "test-physics" time elapsed: 00:00:00
 ----------------------------------------------------------
 
-End testing: Feb 06 11:34 CET
+End testing: Feb 06 15:24 CET

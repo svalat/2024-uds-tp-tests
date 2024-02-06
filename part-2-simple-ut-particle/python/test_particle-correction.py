@@ -10,7 +10,7 @@ def test_constructor():
 	assert 0 == particle.get_x()
 	assert 1 == particle.get_vx()
 
-def test_move(self):
+def test_move():
 	# setup
 	particle = Particle(0, 1)
 

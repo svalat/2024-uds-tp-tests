@@ -13,6 +13,7 @@ class TestBasic(TestCase):
 
         #TODO: mock obj.complex
         #...
+        obj.complex = mock.MagicMock(return_value=16)
 
         # call & check
         res = obj.complex(10)
@@ -20,3 +21,4 @@ class TestBasic(TestCase):
 
         #TODO: check that the mock complex has been called
         #...
+        obj.complex.assert_called_once_with(10)
