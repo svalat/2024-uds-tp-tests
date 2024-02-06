@@ -1,0 +1,89 @@
+Start testing: Feb 06 11:34 CET
+----------------------------------------------------------
+1/3 Testing: test-basic
+1/3 Test: test-basic
+Command: "/home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build/test-basic"
+Directory: /home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build
+"test-basic" start time: Feb 06 11:34 CET
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TestBasic
+[ RUN      ] TestBasic.basic
+[       OK ] TestBasic.basic (0 ms)
+[----------] 1 test from TestBasic (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"test-basic" end time: Feb 06 11:34 CET
+"test-basic" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/3 Testing: test-particle
+2/3 Test: test-particle
+Command: "/home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build/test-particle"
+Directory: /home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build
+"test-particle" start time: Feb 06 11:34 CET
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 2 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 2 tests from TestParticle
+[ RUN      ] TestParticle.constructor
+[       OK ] TestParticle.constructor (0 ms)
+[ RUN      ] TestParticle.move
+[       OK ] TestParticle.move (0 ms)
+[----------] 2 tests from TestParticle (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 2 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 2 tests.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"test-particle" end time: Feb 06 11:34 CET
+"test-particle" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/3 Testing: test-physics
+3/3 Test: test-physics
+Command: "/home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build/test-physics"
+Directory: /home/svalat/Documents/Cours/2024-uds-master2-tests/2023-2024/TP/tp-test-1/fixed/part-2-simple-ut-particle/cpp/build
+"test-physics" start time: Feb 06 11:34 CET
+Output:
+----------------------------------------------------------
+Running main() from ./googletest/src/gtest_main.cc
+[==========] Running 4 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 4 tests from TestPhysics
+[ RUN      ] TestPhysics.collide
+[       OK ] TestPhysics.collide (0 ms)
+[ RUN      ] TestPhysics.get_collision_time_1_symetric
+[       OK ] TestPhysics.get_collision_time_1_symetric (0 ms)
+[ RUN      ] TestPhysics.get_collision_time_2_asymetric
+[       OK ] TestPhysics.get_collision_time_2_asymetric (0 ms)
+[ RUN      ] TestPhysics.test_elastic_collision_1_symetric
+[       OK ] TestPhysics.test_elastic_collision_1_symetric (0 ms)
+[----------] 4 tests from TestPhysics (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 4 tests from 1 test suite ran. (0 ms total)
+[  PASSED  ] 4 tests.
+<end of output>
+Test time =   0.00 sec
+----------------------------------------------------------
+Test Passed.
+"test-physics" end time: Feb 06 11:34 CET
+"test-physics" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Feb 06 11:34 CET
