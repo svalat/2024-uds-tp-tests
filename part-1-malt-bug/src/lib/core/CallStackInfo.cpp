@@ -40,9 +40,7 @@ SimpleQuantityHistory::SimpleQuantityHistory(void )
 **/
 void SimpleQuantityHistory::addEvent(ssize_t value)
 {
-	//>>>>>>>>>>>>>>>>> TODO
-	//@TODO: uncomment again when refactoring will be finished
-	/*if (this->count == 0)
+	if (this->count == 0)
 	{
 		this->min = value;
 		this->max = value;
@@ -53,7 +51,6 @@ void SimpleQuantityHistory::addEvent(ssize_t value)
 			max = value;
 	}
 	this->sum+=value;
-	*/
 
 	this->count++;
 
