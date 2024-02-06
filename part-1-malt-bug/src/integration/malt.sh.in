@@ -1,0 +1,464 @@
+#!/bin/bash
+######################################################
+#            PROJECT  : MALT                         #
+#            VERSION  : 1.2.2                        #
+#            DATE     : 06/2023                      #
+#            AUTHOR   : Valat Sébastien              #
+#            LICENSE  : CeCILL-C                     #
+######################################################
+
+######################################################
+# make strict
+set -e
+#set -u
+
+######################################################
+ENABLE_MPI=false
+MPI_WRAPPER_DIR="$HOME/.malt"
+MALT_OPTIONS=""
+MALT_VERSION="@MALT_VERSION@@MALT_VERSION_NOTE@"
+MALT_ALLOC_WRAPPER=""
+MALT_WRAP_DIR=""
+
+######################################################
+# calc MALT root dir relative to this script
+MALT_ROOT="$(cd $(dirname $0)/.. && pwd)"
+
+# Handle case where malt command is symlink (can arise is some tricks are applied).
+# check if support readlink -f (not on MacOSX & FreeBSD)
+if readlink -f / > /dev/null 2>/dev/null; then
+        MALT_ROOT="$(readlink -f $(dirname $0)/..)"
+fi
+
+######################################################
+maltCheckArgs()
+{
+	if [ -z "$2" ]; then
+		echo "MALT: Missing value for option '$1'" 1>&2
+		exit 1
+	fi
+}
+
+######################################################
+maltGetWrapArgs()
+{
+	local sys_func=${1}
+
+	case "${sys_func}" in
+		'malloc')
+			echo "size"
+			;;
+		'free')
+			echo "ptr"
+			;;
+		'calloc')
+			echo "nmemb, size"
+			;;
+		'realloc')
+			echo "ptr, size"
+			;;
+		'posix_memalign')
+			echo "memptr, alignment, size"
+			;;
+		'aligned_alloc')
+			echo "alignment, size"
+			;;
+		'valloc')
+			echo "size"
+			;;
+		'memalign')
+			echo "alignment, size"
+			;;
+		'pvalloc')
+			echo "size"
+			;;
+		'mmap')
+			echo "start, length, prot, flags, fd, offset"
+			;;
+		'munmap')
+			echo "start, length"
+			;;
+		'mremap')
+			echo "old_address, old_size, new_size, flags"
+			;;
+		*)
+			echo "Invalid system function type to wrap : ${sys_func}" 1>&2
+			exit 1
+			;;
+	esac
+}
+
+######################################################
+maltGetWrapProto()
+{
+	local sys_func=${1}
+	local to_wrap=${2}
+
+	case "${sys_func}" in
+		'malloc')
+			echo "void * ${to_wrap}(size_t size)"
+			;;
+		'free')
+			echo "void ${to_wrap}(void * ptr)"
+			;;
+		'calloc')
+			echo "void * ${to_wrap}(size_t nmemb,size_t size)"
+			;;
+		'realloc')
+			echo "void * ${to_wrap}(void * ptr,size_t size)"
+			;;
+		'posix_memalign')
+			echo "int ${to_wrap}(void **memptr, size_t alignment, size_t size)"
+			;;
+		'aligned_alloc')
+			echo "void * ${to_wrap}(size_t alignment, size_t size)"
+			;;
+		'valloc')
+			echo "void * ${to_wrap}(size_t size)"
+			;;
+		'memalign')
+			echo "void * ${to_wrap}(size_t alignment, size_t size)"
+			;;
+		'pvalloc')
+			echo "void * ${to_wrap}(size_t size)"
+			;;
+		'mmap')
+			echo "void * ${to_wrap}(void *start,size_t length,int prot,int flags,int fd,off_t offset)"
+			;;
+		'munmap')
+			echo "int ${to_wrap}(void *start,size_t length)"
+			;;
+		'mremap')
+			echo "int ${to_wrap}(void *old_address, size_t old_size , size_t new_size, int flags)"
+			;;
+		*)
+			echo "Invalid system function type to wrap : ${sys_func}" 1>&2
+			exit 1
+			;;
+	esac
+}
+
+######################################################
+maltGetWrapType()
+{
+	local sys_func=${1}
+	case "${sys_func}" in
+		'malloc')
+			echo 'MallocFuncPtr'
+			;;
+		'free')
+			echo 'FreeFuncPtr'
+			;;
+		'calloc')
+			echo 'CallocFuncPtr'
+			;;
+		'realloc')
+			echo 'ReallocFuncPtr'
+			;;
+		'posix_memalign')
+			echo 'PosixMemalignFuncPtr'
+			;;
+		'aligned_alloc')
+			echo 'AlignedAllocFuncPtr'
+			;;
+		'valloc')
+			echo 'VallocFuncPtr'
+			;;
+		'memalign')
+			echo 'MemalignFuncPtr'
+			;;
+		'pvalloc')
+			echo 'PVallocFuncPtr'
+			;;
+		'mmap')
+			echo 'MmapFuncPtr'
+			;;
+		'munmap')
+			echo 'MunmapFuncPtr'
+			;;
+		'mremap')
+			echo 'MremapFuncPtr'
+			;;
+		*)
+			echo "Invalid system function type to wrap : ${sys_func}" 1>&2
+			exit 1
+			;;
+	esac
+}
+
+######################################################
+# Should recive as arg1: malloc:je_malloc,free:je_free...
+maltBuildCustomAllocWrapper()
+{
+	# create source file
+	local tmp_dir=$(mktemp -d)
+	local source_file="${tmp_dir}/libwrapper.c"
+	local tmp_decl="${tmp_dir}/decl.part.c"
+	local tmp_wrappers="${tmp_dir}/decl.wrap.c"
+	local tmp_dlsym="${tmp_dir}/decl.dlsym.c"
+	local so_file="${tmp_dir}/libmalt_custom_alloc_wrap.so"
+	local regexp="^([a-zA-Z0-9_]+):([a-zA-Z0-9_]+)$"
+
+	# export
+	MALT_WRAP_DIR="${tmp_dir}"
+
+	# header
+	echo "#define _GNU_SOURCE" >> ${source_file}
+	echo "#include <malt/AllocWrapperExtend.hpp>" > ${source_file}
+	echo "#include <stdio.h>" >> ${source_file}
+	echo "//libc POSIX.1, here we use GNU specific RTLD_NEXT (need _GNU_SOURCE)" >> ${source_file}
+	echo "#include <dlfcn.h>" >> ${source_file}
+	echo "" >> ${source_file}
+	echo "using namespace MALT;" >> ${source_file}
+	echo "" >> ${source_file}
+
+	# parts
+	echo "//Declare real function pointers" > ${tmp_decl}
+	echo "//Define wrappers" > ${tmp_wrappers}
+	echo "extern \"C\" {" >> ${tmp_wrappers}
+	echo "//Load symbols on init" > ${tmp_dlsym}
+	echo "void MALT::malt_wrap_extended_symbols(void)" >> ${tmp_dlsym}
+	echo "{" >> ${tmp_dlsym}
+
+	# store members
+	for wrap in $(echo ${1} | sed -e 's/,/ /g')
+	do
+		# parse (malloc:je_malloc)
+		if [[ "${wrap}" =~ $regexp ]]; then
+			local semantic_func=${BASH_REMATCH[1]}
+			local func_to_wrap=${BASH_REMATCH[2]}
+			local sym_var="real_symbol_${func_to_wrap}"
+			local ptr_type=$(maltGetWrapType ${semantic_func})
+			local print=''
+			if [ "${MALT_WRAPPER_LOG}" == 'true' ]; then
+				print="printf(\"MALT: Call wrapper of ${func_to_wrap}\\n\");"
+			fi
+			echo "MALT: Will wrap custom symbol : ${func_to_wrap} (as ${semantic_func})" 1>&2
+			echo "static ${ptr_type} ${sym_var} = NULL;" >> ${tmp_decl}
+			echo "	$(maltGetWrapProto ${semantic_func} ${func_to_wrap})" >> ${tmp_wrappers}
+			echo "		{${print} return malt_wrap_${semantic_func}($(maltGetWrapArgs ${semantic_func}), ${sym_var}, MALT_RETADDR);};" >> ${tmp_wrappers}
+			echo "	${sym_var} = (${ptr_type})dlsym(RTLD_NEXT, \"${func_to_wrap}\");" >> ${tmp_dlsym}
+		else
+			echo "MALT: Invalid custom wrapper pattern : ${wrap}, expect something like: 'malloc:je_malloc'" 1>&2
+			exit 1
+		fi
+	done
+
+	# close
+	echo "}" >> ${tmp_dlsym}
+	echo "" >> ${tmp_decl}
+	echo "}" >> ${tmp_wrappers}
+	echo "" >> ${tmp_wrappers}
+	echo "" >> ${tmp_dlsym}
+
+	# aggregate
+	cat ${tmp_decl} >> ${source_file}
+	cat ${tmp_wrappers} >> ${source_file}
+	cat ${tmp_dlsym} >> ${source_file}
+
+	# clean
+	rm -f ${tmp_decl} ${tmp_wrappers} ${tmp_dlsym}
+
+	# build
+	if [ "${MALT_WRAPPER_SHOW}" == "true" ]; then
+		echo "================ CUSTOM WRAPPER =================="
+		cat ${source_file}
+		echo "=================================================="
+	fi
+
+	g++ -fPIC -Wall -Werror -shared -I${MALT_ROOT}/include -o ${so_file} ${source_file} || exit 1
+
+	# export
+	WRAP_SO_FILE="${so_file}"
+}
+
+######################################################
+maltAddWrapper()
+{
+	if [[ ${MALT_ALLOC_WRAPPER} == '' ]]; then
+		MALT_ALLOC_WRAPPER="$@"
+	else
+		MALT_ALLOC_WRAPPER="${MALT_ALLOC_WRAPPER},$@"
+	fi
+}
+
+######################################################
+maltWrapPrefix()
+{
+	for prefix in "$@"
+	do
+		for semantic in 'malloc' 'free' 'calloc' 'realloc' 'memalign' 'aligned_alloc' 'posix_memalign'
+		do
+			maltAddWrapper "${semantic}:${prefix}${semantic}"
+		done
+	done
+}
+
+######################################################
+maltPrepMPI()
+{
+	#create dir
+	if [ ! -d "$MPI_WRAPPER_DIR/" ]; then
+		mkdir -p "$MPI_WRAPPER_DIR" || exit 1
+	fi
+	
+	#select mpicxx
+	mpicxx="$1"
+
+	#missing parameter
+	if [ -z "$mpicxx" ]; then
+		if [ ! -z "$MPICXX" ]; then
+			echo "No mpicxx provided by command, trying your MPICXX="$MPICXX" from environnement !"
+			mpicxx="$MPICXX"
+		else
+			echo "No mpicxx provided by command, trying default 'mpicxx' from environnement !"
+			mpicxx=mpicxx
+		fi
+	fi
+
+	#compile file
+	echo "$mpicxx" '-shared' '-fPIC' "${MALT_ROOT}/share/malt/MaltMPIRank.cpp" -o "$MPI_WRAPPER_DIR/libmaltmpi.so"
+	"$mpicxx" '-shared' '-fPIC' "${MALT_ROOT}/share/malt/MaltMPIRank.cpp" -o "$MPI_WRAPPER_DIR/libmaltmpi.so"
+	
+	#finish
+	exit $?
+}
+
+######################################################
+maltShowHelp()
+{
+	echo "Usage : malt [--config file] [--help] [--] YOUR_COMMAND"
+	echo ""
+	echo "Options:"
+	echo "   -c {file}/--config {file}   Provide configuration file in INI format."
+	echo "           --mpi               Use MPI wrapper to get ranks in output file names."
+	echo "           --prep-mpi [mpicxx] Build the mpi wrapper into $HOME/.malt/libmaltmpi.so"
+	echo "   -s {mode}/--stack {mode}    Select the stack tracking mode (backtrace|enter-exit)."
+	echo "   -q/--quiet                  Enable silent mode."
+	echo "   -v/--verbose                Enable verbose mode."
+	echo "   -t/--trace                  Enable the tracing mode."
+	echo "   -d/--dumpconfig             Enable the dump of config file at exit."
+	echo "   --wrap {type}:{func_name}   Wrap the given allocation (type=malloc,free...) with the"
+	echo "                               given use defined symbol (eg. je_malloc). Can list with"
+	echo "                               coma as separator or call several time."
+	echo "   --wrap-prefix {prefix}      Wrap all the allocator function prefixed by the given value."
+	echo "                               (Eg. prefix by 'je_' will wrap je_malloc, je_free...)"
+	echo "   -o {SEC:NAME=VAL;...}       Override configuration values."
+	echo "   --version                   Print current MALT version."
+	echo "   -h/--help                   Show this help message."
+	echo ""
+}
+
+######################################################
+#Check args
+while true; do
+	case "$1" in
+		--version)
+			echo "${MALT_VERSION}"
+			exit 0
+		;;
+		--help|-h)
+			maltShowHelp
+			exit 0
+		;;
+		--config|-c)
+			maltCheckArgs "$@"
+			export MALT_CONFIG="$2"
+			shift 2
+		;;
+		--stack|-s)
+			maltCheckArgs "$@"
+			export MALT_STACK="$2"
+			shift 2
+		;;
+		--trace|-t)
+			export MALT_OPTIONS="${MALT_OPTIONS};trace:enabled=true"
+			shift 1
+		;;
+		--quiet|-q)
+			export MALT_OPTIONS="${MALT_OPTIONS};output:verbosity=silent"
+			shift 1
+		;;
+		--verbose|-v)
+			export MALT_OPTIONS="${MALT_OPTIONS};output:verbosity=verbose"
+			shift 1
+		;;
+		--option|-o)
+			maltCheckArgs "$@"
+			export MALT_OPTIONS="${MALT_OPTIONS};$2"
+			shift 2
+		;;
+		--dumpconfig|-d)
+			export MALT_OPTIONS="${MALT_OPTIONS};output:config=true"
+			shift 1
+			;;
+		--mpi)
+			ENABLE_MPI=true
+			if [ ! -e "${MPI_WRAPPER_DIR}/libmaltmpi.so" ]; then
+				echo "Missing MPI wrapper to extract ranks, please prepare it with 'malt --prep-mpi=MPICXX' !"
+				exit 1
+			fi
+			shift 1
+			;;
+		--wrap)
+			maltAddWrapper "$2"
+			shift 2
+			;;
+		--wrap-prefix)
+			maltWrapPrefix ${2}
+			shift 2
+			;;
+		--prep-mpi)
+			case "$2" in
+				-*)
+					maltPrepMPI
+					shift 1
+				;;
+				*)
+					maltPrepMPI "$2"
+					shift 2
+				;;
+			esac
+		;;
+		--)
+			shift 1
+			break
+		;;
+		*)
+			break
+		;;
+	esac
+done
+
+######################################################
+#debug env
+# if [ ! -z "$MALT_CONFIG" ]; then echo "MALT_CONFIG=$MALT_CONFIG"; fi
+
+######################################################
+MALT_LIB="${MALT_ROOT}/@CMAKE_INSTALL_LIBDIR@/libmalt.so"
+if [ ! -f "${MALT_LIB}" ]; then
+	MALT_LIB="${MALT_ROOT}/@CMAKE_INSTALL_LIBDIR@/libmalt.so"
+fi
+
+######################################################
+# prepend wrapper
+if [ ! -z "${MALT_ALLOC_WRAPPER}" ]; then
+	maltBuildCustomAllocWrapper "${MALT_ALLOC_WRAPPER}"
+	MALT_LIB="${WRAP_SO_FILE}:${MALT_LIB}"
+fi
+
+######################################################
+#run
+if [ "${ENABLE_MPI}" = "true" ]; then
+	LD_PRELOAD="${MPI_WRAPPER_DIR}/libmaltmpi.so:${MALT_LIB}:${LD_PRELOAD}" "$@"
+elif [ -z "${LD_PRELOAD}" ]; then
+	LD_PRELOAD="${MALT_LIB}" "$@"
+else
+	LD_PRELOAD="${MALT_LIB}:${LD_PRELOAD}" "$@"
+fi
+
+######################################################
+# clean
+if [ ! -z "${MALT_WRAP_DIR}" ]; then
+	rm -rfd ${MALT_WRAP_DIR}
+fi
